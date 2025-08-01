@@ -828,6 +828,7 @@ std::unique_ptr<phosphor::host::command::Manager>& ipmid_get_host_cmd_manager()
 extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
+#ifndef FUZZING
 int main(int argc, char* argv[])
 {
     // Connect to system bus
@@ -908,3 +909,4 @@ int main(int argc, char* argv[])
 
     std::exit(exitCode);
 }
+#endif

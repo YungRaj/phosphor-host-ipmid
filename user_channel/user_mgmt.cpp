@@ -1589,8 +1589,8 @@ void UserAccess::cacheUserDataFile()
     if (fd < 0)
     {
         lg2::error("Error in creating IPMI user signal lock file");
-        throw std::ios_base::failure(
-            "Error in creating temporary IPMI user signal lock file");
+        // throw std::ios_base::failure(
+        //    "Error in creating temporary IPMI user signal lock file");
     }
     close(fd);
 

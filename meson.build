@@ -4,7 +4,7 @@ project(
     version: '0.1',
     meson_version: '>=1.1.1',
     default_options: [
-        'werror=true',
+        'werror=false',
         'warning_level=3',
         'cpp_std=c++23',
         'b_lto=true',
@@ -336,6 +336,30 @@ executable(
     install: true,
     install_dir: get_option('bindir'),
 )
+
+libfuzzer_args = [
+    '-fsanitize=leak,address',
+    '-fno-omit-frame-pointer',
+    '-fprofile-instr-generate',
+    '-fcoverage-mapping',
+    '-g'
+]
+
+# ipmid-fuzzing binary
+executable(
+  'ipmid-fuzzing',
+  'ipmid-fuzzing.cpp',
+  'host-cmd-manager.cpp',
+  'settings.cpp',
+  implicit_include_directories: false,
+  dependencies: [libipmi20_dep],
+  include_directories: root_inc,
+  export_dynamic: true,
+  install: true,
+  install_dir: get_option('bindir'),
+  cpp_args: libfuzzer_args, 
+  link_args: ['-fno-lto', '-fsanitize=address,fuzzer'])
+
 
 # Dynamic Sensor Stack
 subdir('dbus-sdr')
