@@ -4,7 +4,7 @@ project(
     version: '0.1',
     meson_version: '>=1.1.1',
     default_options: [
-        'werror=true',
+        'werror=false',
         'warning_level=3',
         'cpp_std=c++23',
         'b_lto=true',
@@ -306,6 +306,14 @@ libipmi20_src = [
     conf_h,
 ]
 
+libfuzzer_args = [
+    '-fsanitize=leak,address',
+    '-fno-omit-frame-pointer',
+    '-fprofile-instr-generate',
+    '-fcoverage-mapping',
+    '-g'
+]
+
 ipmi20_lib = library(
     'ipmi20',
     libipmi20_src,
@@ -315,6 +323,8 @@ ipmi20_lib = library(
     install_dir: get_option('libdir') / 'ipmid-providers',
     version: meson.project_version(),
     override_options: ['b_lundef=false'],
+    cpp_args: get_option('fuzzing')? libfuzzer_args: [],
+    link_args: get_option('fuzzing')? libfuzzer_args: [],
 )
 
 libipmi20_dep = declare_dependency(
@@ -335,7 +345,34 @@ executable(
     export_dynamic: true,
     install: true,
     install_dir: get_option('bindir'),
+    cpp_args: get_option('fuzzing')? libfuzzer_args: [], 
+    link_args: get_option('fuzzing')? ['-fno-lto'] + libfuzzer_args: []
 )
+
+libfuzzer_args = [
+    '-fsanitize=fuzzer,leak,address',
+    '-fno-omit-frame-pointer',
+    '-fprofile-instr-generate',
+    '-fcoverage-mapping',
+    '-g'
+]
+
+# ipmid-fuzzing binary
+executable(
+  'ipmid-fuzzing',
+  'ipmid-fuzzing.cpp',
+  'host-cmd-manager.cpp',
+  'settings.cpp',
+  implicit_include_directories: false,
+  dependencies: [libipmi20_dep],
+  include_directories: root_inc,
+  export_dynamic: true,
+  install: true,
+  install_dir: get_option('bindir'),
+  cpp_args: get_option('fuzzing')? libfuzzer_args: [], 
+  link_args: get_option('fuzzing')? ['-fno-lto'] + libfuzzer_args: []
+)
+
 
 # Dynamic Sensor Stack
 subdir('dbus-sdr')

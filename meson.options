@@ -1,5 +1,6 @@
 
 option('tests', type: 'feature', description: 'Build tests')
+option('fuzzing', type : 'boolean', value : false, description : 'Enable building the fuzzer.')
 option(
     'boot-flag-safe-mode-support',
     type: 'feature',
