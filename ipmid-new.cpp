@@ -31,6 +31,8 @@
 #include <ipmid/oemrouter.hpp>
 #include <ipmid/types.hpp>
 #include <ipmid/utils.hpp>
+#include <openssl/evp.h>
+#include <openssl/sha.h>
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
@@ -44,6 +46,7 @@
 #include <exception>
 #include <filesystem>
 #include <forward_list>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -489,6 +492,70 @@ uint8_t channelFromMessage(sdbusplus::message_t& msg)
     }
 } // namespace ipmi
 
+std::string computeHash(const unsigned char* data, size_t len, std::vector<unsigned char>& out_digest) {
+    // Prepare a digest context
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        throw std::runtime_error("EVP_MD_CTX_new failed");
+    }
+
+    // Initialize the digest operation
+    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1) {
+        EVP_MD_CTX_free(ctx);
+        throw std::runtime_error("EVP_DigestInit_ex failed");
+    }
+
+    // Feed the data
+    if (EVP_DigestUpdate(ctx, data, len) != 1) {
+        EVP_MD_CTX_free(ctx);
+        throw std::runtime_error("EVP_DigestUpdate failed");
+    }
+
+    // Resize output buffer
+    out_digest.resize(SHA256_DIGEST_LENGTH);
+
+    // Finalize and store the result
+    unsigned int out_len = 0;
+    if (EVP_DigestFinal_ex(ctx, out_digest.data(), &out_len) != 1) {
+        EVP_MD_CTX_free(ctx);
+        throw std::runtime_error("EVP_DigestFinal_ex failed");
+    }
+
+    EVP_MD_CTX_free(ctx);
+
+    std::ostringstream oss;
+    for (unsigned char byte : out_digest) {
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    }
+    return oss.str();
+}
+
+void appendToCorpusWithData(ipmi::SecureBuffer &data) {
+    unsigned char* buffer = reinterpret_cast<unsigned char*>(data.data());
+    size_t len = data.size();
+
+    std::vector<unsigned char> digest;
+    std::string corpus_file_name = computeHash(buffer, len, digest);
+
+    struct stat st;
+    std::string corpus_dir = "/corpus";
+    if (stat(corpus_dir.c_str(), &st) != 0) {
+        if (mkdir(corpus_dir.c_str(), 0755) != 0) {
+            return;
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        return;
+    }
+
+    std::string corpus_data(reinterpret_cast<const char*>(data.data()), data.size());
+    std::string corpus_file_path = corpus_dir + "/" + corpus_file_name;
+    std::ofstream corpus_file(corpus_file_path, std::ios::app);
+    if (!corpus_file) {
+        return;
+    }
+    corpus_file << corpus_data << std::endl;
+}
+
 /* called from sdbus async server context */
 auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
@@ -582,6 +649,7 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
     auto ctx = std::make_shared<ipmi::Context>(
         getSdBus(), netFn, lun, cmd, channel, userId, sessionId, privilege,
         rqSA, hostIdx, yield);
+    appendToCorpusWithData(data);
     auto request = std::make_shared<ipmi::message::Request>(
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
@@ -781,6 +849,7 @@ void handleLegacyIpmiCommand(sdbusplus::message_t& m)
             auto ctx = std::make_shared<ipmi::Context>(
                 bus, netFn, lun, cmd, 0, 0, 0, ipmi::Privilege::Admin, 0, 0,
                 yield);
+            appendToCorpusWithData(data);
             auto request = std::make_shared<ipmi::message::Request>(
                 ctx, std::forward<ipmi::SecureBuffer>(data));
             ipmi::message::Response::ptr response =

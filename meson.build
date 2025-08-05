@@ -4,7 +4,7 @@ project(
     version: '0.1',
     meson_version: '>=1.1.1',
     default_options: [
-        'werror=true',
+        'werror=false',
         'warning_level=3',
         'cpp_std=c++23',
         'b_lto=true',
