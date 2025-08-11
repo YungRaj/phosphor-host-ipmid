@@ -331,7 +331,7 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
     sigHndlrLock = boost::interprocess::file_lock(channelNvDataFilename);
     // Register it for single object and single process either netipmid /
     // host-ipmid
-    if (chPropertiesSignal == nullptr && sigHndlrLock.try_lock())
+    if (0 /* chPropertiesSignal == nullptr && sigHndlrLock.try_lock() */)
     {
         lg2::debug("Registering channel signal handler.");
         chPropertiesSignal = std::make_unique<sdbusplus::bus::match_t>(
