@@ -4,12 +4,15 @@ project(
     version: '0.1',
     meson_version: '>=1.1.1',
     default_options: [
-        'werror=true',
+        'werror=false',
         'warning_level=3',
-        'cpp_std=c++23',
-        'b_lto=true',
+        'cpp_std=c++26',
+        'b_lto=false',
     ],
 )
+
+add_project_arguments('-Wno-error', '-fno-omit-frame-pointer', '-fprofile-instr-generate', '-fcoverage-mapping', '-fsanitize-coverage=trace-pc-guard', '-fsanitize=leak,address', '-shared-libasan', language: 'cpp')
+add_project_link_arguments('-fno-omit-frame-pointer', '-fprofile-instr-generate', '-fcoverage-mapping', '-fsanitize-coverage=trace-pc-guard', '-fsanitize=leak,address', '-shared-libasan', language: 'cpp')
 
 # Setting up config data
 conf_data = configuration_data()
@@ -320,6 +323,36 @@ libipmi20_dep = declare_dependency(
     dependencies: ipmid_pre,
     include_directories: root_inc,
     link_with: ipmi20_lib,
+)
+
+ipmifuzzer_lib = library(
+    'ipmi20_fuzz',
+    'fuzzer.cpp',
+    'host-cmd-manager.cpp',
+    'settings.cpp',
+    libipmi20_src,
+    dependencies: [ipmid_pre, nlohmann_json_dep],
+    include_directories: root_inc,
+    install: true,
+    install_dir: get_option('libdir') / 'ipmid-providers',
+    override_options: ['b_lundef=false'],
+
+)
+
+# ipmid binary
+executable(
+    'ipmid_fuzz',
+    'fuzzer.cpp',
+    'host-cmd-manager.cpp',
+    'settings.cpp',
+    libipmi20_src,
+    dependencies: [ipmid_pre, nlohmann_json_dep],
+    implicit_include_directories: false,
+    include_directories: root_inc,
+    export_dynamic: true,
+    install: true,
+    install_dir: get_option('bindir'),
+    cpp_args : ['-DFUZZ_ONE']
 )
 
 # ipmid binary

@@ -873,6 +873,7 @@ ipmi::RspType<uint8_t,  // SDR version
 
 void registerNetFnStorageFunctions()
 {
+    /*
     selCacheMapInitialized = false;
     initSELCache();
     // Handlers with dbus-sdr handler implementation.
@@ -957,5 +958,6 @@ void registerNetFnStorageFunctions()
                           ipmi::Privilege::Operator, ipmiStorageSetSelTime);
 
     ipmi::fru::registerCallbackHandler();
+    */
     return;
 }
