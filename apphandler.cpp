@@ -861,6 +861,7 @@ auto ipmiAppGetSystemGuid(ipmi::Context::ptr& ctx)
         lg2::error("Failed to locate System UUID object, "
                    "interface: {INTERFACE}, error: {ERROR}",
                    "INTERFACE", uuidInterface, "ERROR", ec.message());
+        return ipmi::responseUnspecifiedError();
     }
 
     // Read UUID property value from bmcObject
